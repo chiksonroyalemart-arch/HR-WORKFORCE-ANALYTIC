@@ -1,0 +1,141 @@
+{
+  "entities": {
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Authorized ALERT MFB HRMIS user account and role-based access control assignment.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "displayName": { "type": "string", "maxLength": 150 },
+        "role": { "type": "string", "enum": ["super_admin", "hr_admin", "hr_officer", "read_only"] },
+        "status": { "type": "string", "enum": ["active", "suspended"] },
+        "departmentScope": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "displayName", "role", "status", "createdAt", "updatedAt"]
+    },
+    "EmployeeRecord": {
+      "title": "EmployeeRecord",
+      "description": "ALERT MFB employee HR record imported from CSV/Excel or maintained by HR.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "enum": ["alert_mfb"] },
+        "sn": { "type": "number" },
+        "staffCode": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 32 },
+        "firstName": { "type": "string", "maxLength": 100 },
+        "middleName": { "type": "string", "maxLength": 100 },
+        "lastName": { "type": "string", "maxLength": 100 },
+        "fullName": { "type": "string", "maxLength": 200 },
+        "department": { "type": "string", "maxLength": 120 },
+        "jobRole": { "type": "string", "maxLength": 120 },
+        "subsidiary": { "type": "string", "maxLength": 120 },
+        "dobRaw": { "type": "string", "maxLength": 64 },
+        "dobIso": { "type": "string", "maxLength": 32 },
+        "officialEmail": { "type": "string", "maxLength": 200 },
+        "mobileNumber": { "type": "string", "maxLength": 40 },
+        "personalEmail": { "type": "string", "maxLength": 200 },
+        "gender": { "type": "string", "maxLength": 32 },
+        "maritalStatus": { "type": "string", "maxLength": 40 },
+        "location": { "type": "string", "maxLength": 100 },
+        "resumptionDateRaw": { "type": "string", "maxLength": 64 },
+        "resumptionDateIso": { "type": "string", "maxLength": 32 },
+        "probationRequired": { "type": "string", "maxLength": 32 },
+        "probationStartRaw": { "type": "string", "maxLength": 64 },
+        "probationStartIso": { "type": "string", "maxLength": 32 },
+        "probationEndRaw": { "type": "string", "maxLength": 64 },
+        "probationEndIso": { "type": "string", "maxLength": 32 },
+        "probationStatus": { "type": "string", "maxLength": 64 },
+        "confirmationDateRaw": { "type": "string", "maxLength": 64 },
+        "confirmationDateIso": { "type": "string", "maxLength": 32 },
+        "confirmationStatus": { "type": "string", "maxLength": 64 },
+        "authorizedUids": { "type": "string", "description": "Bounded array of authorized viewer UIDs in Firestore" },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "staffCode", "fullName", "department", "jobRole", "subsidiary", "createdAt", "updatedAt"]
+    },
+    "AlertReview": {
+      "title": "AlertReview",
+      "description": "HR administrator acknowledgment record for an HR alert item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "enum": ["alert_mfb"] },
+        "alertKey": { "type": "string", "maxLength": 120 },
+        "reviewedByUid": { "type": "string", "maxLength": 128 },
+        "reviewedByEmail": { "type": "string", "maxLength": 200 },
+        "notes": { "type": "string", "maxLength": 500 },
+        "authorizedUids": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "alertKey", "reviewedByUid", "createdAt"]
+    },
+    "ImportAuditLog": {
+      "title": "ImportAuditLog",
+      "description": "Audit log of dataset imports and batch updates.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "orgId": { "type": "string", "enum": ["alert_mfb"] },
+        "fileName": { "type": "string", "maxLength": 200 },
+        "importedByUid": { "type": "string", "maxLength": 128 },
+        "importedByEmail": { "type": "string", "maxLength": 200 },
+        "addedCount": { "type": "number" },
+        "updatedCount": { "type": "number" },
+        "duplicateCount": { "type": "number" },
+        "skippedCount": { "type": "number" },
+        "authorizedUids": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "orgId", "fileName", "importedByUid", "addedCount", "updatedCount", "createdAt"]
+    },
+    "WorkspaceSettings": {
+      "title": "WorkspaceSettings",
+      "description": "ALERT MFB organization settings, preferences, and authorized team UIDs.",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string", "maxLength": 100 },
+        "applicationName": { "type": "string", "maxLength": 120 },
+        "tagline": { "type": "string", "maxLength": 200 },
+        "dateFormat": { "type": "string", "enum": ["DD MMM YYYY", "DD/MM/YYYY", "YYYY-MM-DD"] },
+        "logoDataUrl": { "type": "string", "maxLength": 350000 },
+        "notifyProbation7d": { "type": "boolean" },
+        "notifyProbation30d": { "type": "boolean" },
+        "notifyOverdue": { "type": "boolean" },
+        "notifyBirthdays": { "type": "boolean" },
+        "notifyDataQuality": { "type": "boolean" },
+        "authorizedUids": { "type": "string" },
+        "updatedBy": { "type": "string", "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["companyName", "applicationName", "tagline", "dateFormat", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserAccount" },
+      "description": "Authorized HRMIS users and RBAC role assignments."
+    },
+    "/employees/{employeeId}": {
+      "schema": { "$ref": "#/entities/EmployeeRecord" },
+      "description": "Master employee HR dataset records."
+    },
+    "/alertReviews/{reviewId}": {
+      "schema": { "$ref": "#/entities/AlertReview" },
+      "description": "Acknowledged HR alert records."
+    },
+    "/importLogs/{logId}": {
+      "schema": { "$ref": "#/entities/ImportAuditLog" },
+      "description": "Dataset import audit history."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/WorkspaceSettings" },
+      "description": "ALERT MFB HRMIS configuration and branding preferences."
+    }
+  }
+}

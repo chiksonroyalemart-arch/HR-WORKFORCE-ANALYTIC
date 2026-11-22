@@ -1,0 +1,6 @@
+{
+  "name": "ALERT MFB – HR Management System",
+  "description": "Enterprise Employee HR Management, Probation & Confirmation Tracking, and Workforce Analytics System for ALERT MFB.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

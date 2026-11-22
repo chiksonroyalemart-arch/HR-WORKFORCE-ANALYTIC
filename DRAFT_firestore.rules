@@ -1,0 +1,340 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Primitives ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'chiksonroyalemart@gmail.com';
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function userDocData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isActiveUser() {
+      return isVerifiedUser() && userDocExists() && userDocData().status == 'active';
+    }
+
+    function isSuperAdmin() {
+      return isBootstrappedAdmin() || (isActiveUser() && userDocData().role == 'super_admin');
+    }
+
+    function isHRAdminOrAbove() {
+      return isSuperAdmin() || (isActiveUser() && userDocData().role == 'hr_admin');
+    }
+
+    function isHROfficerOrAbove() {
+      return isHRAdminOrAbove() || (isActiveUser() && userDocData().role == 'hr_officer');
+    }
+
+    function isAuthorizedViewer() {
+      return isHROfficerOrAbove() || (isActiveUser() && userDocData().role == 'read_only');
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() >= 1 && val.size() <= maxLen;
+    }
+
+    function isOptString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserAccount(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'displayName', 'role', 'status', 'departmentScope', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'displayName', 'role', 'status', 'departmentScope', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && isNonEmptyString(data.email, 200)
+        && isNonEmptyString(data.displayName, 150)
+        && data.role in ['super_admin', 'hr_admin', 'hr_officer', 'read_only']
+        && data.status in ['active', 'suspended']
+        && isOptString(data.departmentScope, 120)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidEmployeeRecord(data, employeeId) {
+      return data.keys().hasAll([
+          'id', 'orgId', 'sn', 'staffCode', 'title', 'firstName', 'middleName', 'lastName', 'fullName',
+          'department', 'jobRole', 'subsidiary', 'dobRaw', 'dobIso',
+          'officialEmail', 'mobileNumber', 'personalEmail', 'gender', 'maritalStatus', 'location',
+          'resumptionDateRaw', 'resumptionDateIso', 'probationRequired',
+          'probationStartRaw', 'probationStartIso', 'probationEndRaw', 'probationEndIso', 'probationStatus',
+          'confirmationDateRaw', 'confirmationDateIso', 'confirmationStatus',
+          'authorizedUids', 'updatedBy', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'orgId', 'sn', 'staffCode', 'title', 'firstName', 'middleName', 'lastName', 'fullName',
+          'department', 'jobRole', 'subsidiary', 'dobRaw', 'dobIso',
+          'officialEmail', 'mobileNumber', 'personalEmail', 'gender', 'maritalStatus', 'location',
+          'resumptionDateRaw', 'resumptionDateIso', 'probationRequired',
+          'probationStartRaw', 'probationStartIso', 'probationEndRaw', 'probationEndIso', 'probationStatus',
+          'confirmationDateRaw', 'confirmationDateIso', 'confirmationStatus',
+          'authorizedUids', 'updatedBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == employeeId
+        && data.orgId == 'alert_mfb'
+        && (data.sn == null || data.sn is number)
+        && isNonEmptyString(data.staffCode, 64)
+        && isOptString(data.title, 32)
+        && isOptString(data.firstName, 100)
+        && isOptString(data.middleName, 100)
+        && isOptString(data.lastName, 100)
+        && isNonEmptyString(data.fullName, 200)
+        && isOptString(data.department, 120)
+        && isOptString(data.jobRole, 120)
+        && isOptString(data.subsidiary, 120)
+        && isOptString(data.dobRaw, 64)
+        && isOptString(data.dobIso, 32)
+        && isOptString(data.officialEmail, 200)
+        && isOptString(data.mobileNumber, 40)
+        && isOptString(data.personalEmail, 200)
+        && isOptString(data.gender, 32)
+        && isOptString(data.maritalStatus, 40)
+        && isOptString(data.location, 100)
+        && isOptString(data.resumptionDateRaw, 64)
+        && isOptString(data.resumptionDateIso, 32)
+        && isOptString(data.probationRequired, 32)
+        && isOptString(data.probationStartRaw, 64)
+        && isOptString(data.probationStartIso, 32)
+        && isOptString(data.probationEndRaw, 64)
+        && isOptString(data.probationEndIso, 32)
+        && isOptString(data.probationStatus, 64)
+        && isOptString(data.confirmationDateRaw, 64)
+        && isOptString(data.confirmationDateIso, 32)
+        && isOptString(data.confirmationStatus, 64)
+        && data.authorizedUids is list
+        && data.authorizedUids.size() >= 1
+        && data.authorizedUids.size() <= 25
+        && data.authorizedUids[0] is string
+        && isValidId(data.updatedBy)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAlertReview(data, reviewId) {
+      return data.keys().hasAll(['id', 'orgId', 'alertKey', 'reviewedByUid', 'reviewedByEmail', 'notes', 'authorizedUids', 'createdAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'alertKey', 'reviewedByUid', 'reviewedByEmail', 'notes', 'authorizedUids', 'createdAt'])
+        && isValidId(data.id)
+        && data.id == reviewId
+        && data.orgId == 'alert_mfb'
+        && isNonEmptyString(data.alertKey, 120)
+        && isValidId(data.reviewedByUid)
+        && data.reviewedByUid == request.auth.uid
+        && isNonEmptyString(data.reviewedByEmail, 200)
+        && isOptString(data.notes, 500)
+        && data.authorizedUids is list
+        && data.authorizedUids.size() >= 1
+        && data.authorizedUids.size() <= 25
+        && data.authorizedUids[0] is string
+        && data.createdAt is timestamp;
+    }
+
+    function isValidImportLog(data, logId) {
+      return data.keys().hasAll(['id', 'orgId', 'fileName', 'importedByUid', 'importedByEmail', 'addedCount', 'updatedCount', 'duplicateCount', 'skippedCount', 'authorizedUids', 'createdAt'])
+        && data.keys().hasOnly(['id', 'orgId', 'fileName', 'importedByUid', 'importedByEmail', 'addedCount', 'updatedCount', 'duplicateCount', 'skippedCount', 'authorizedUids', 'createdAt'])
+        && isValidId(data.id)
+        && data.id == logId
+        && data.orgId == 'alert_mfb'
+        && isNonEmptyString(data.fileName, 200)
+        && isValidId(data.importedByUid)
+        && data.importedByUid == request.auth.uid
+        && isNonEmptyString(data.importedByEmail, 200)
+        && data.addedCount is number && data.addedCount >= 0
+        && data.updatedCount is number && data.updatedCount >= 0
+        && data.duplicateCount is number && data.duplicateCount >= 0
+        && data.skippedCount is number && data.skippedCount >= 0
+        && data.authorizedUids is list
+        && data.authorizedUids.size() >= 1
+        && data.authorizedUids.size() <= 25
+        && data.authorizedUids[0] is string
+        && data.createdAt is timestamp;
+    }
+
+    function isValidWorkspaceSettings(data) {
+      return data.keys().hasAll([
+          'companyName', 'applicationName', 'tagline', 'dateFormat', 'logoDataUrl',
+          'notifyProbation7d', 'notifyProbation30d', 'notifyOverdue', 'notifyBirthdays', 'notifyDataQuality',
+          'authorizedUids', 'updatedBy', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'companyName', 'applicationName', 'tagline', 'dateFormat', 'logoDataUrl',
+          'notifyProbation7d', 'notifyProbation30d', 'notifyOverdue', 'notifyBirthdays', 'notifyDataQuality',
+          'authorizedUids', 'updatedBy', 'updatedAt'
+        ])
+        && isNonEmptyString(data.companyName, 100)
+        && isNonEmptyString(data.applicationName, 120)
+        && isNonEmptyString(data.tagline, 200)
+        && data.dateFormat in ['DD MMM YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD']
+        && isOptString(data.logoDataUrl, 350000)
+        && data.notifyProbation7d is bool
+        && data.notifyProbation30d is bool
+        && data.notifyOverdue is bool
+        && data.notifyBirthdays is bool
+        && data.notifyDataQuality is bool
+        && data.authorizedUids is list
+        && data.authorizedUids.size() >= 1
+        && data.authorizedUids.size() <= 25
+        && data.authorizedUids[0] is string
+        && isValidId(data.updatedBy)
+        && data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isVerifiedUser() && isValidId(userId) && (isOwner(userId) || isSuperAdmin());
+      allow list: if isVerifiedUser() && (isBootstrappedAdmin() || existing().uid == request.auth.uid);
+
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserAccount(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && (
+          (isBootstrappedAdmin() && isOwner(userId) && incoming().role == 'super_admin' && incoming().status == 'active')
+          || (isOwner(userId) && incoming().role == 'read_only' && incoming().status == 'active' && incoming().email == request.auth.token.email)
+          || isSuperAdmin()
+        );
+
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserAccount(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isSuperAdmin()
+          || (
+            isOwner(userId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'updatedAt'])
+          )
+        );
+
+      allow delete: if isSuperAdmin() && isValidId(userId) && !isOwner(userId);
+    }
+
+    match /employees/{employeeId} {
+      allow get: if isVerifiedUser() && isValidId(employeeId) && isAuthorizedViewer();
+      allow list: if isVerifiedUser() && (isBootstrappedAdmin() || request.auth.uid in existing().authorizedUids);
+
+      allow create: if isVerifiedUser()
+        && isValidId(employeeId)
+        && isValidEmployeeRecord(incoming(), employeeId)
+        && isHRAdminOrAbove()
+        && incoming().updatedBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(employeeId)
+        && isValidEmployeeRecord(incoming(), employeeId)
+        && incoming().id == existing().id
+        && incoming().orgId == existing().orgId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().updatedBy == request.auth.uid
+        && (
+          isHRAdminOrAbove()
+          || (
+            isHROfficerOrAbove()
+            && incoming().diff(existing()).affectedKeys().hasOnly([
+              'officialEmail', 'mobileNumber', 'personalEmail', 'maritalStatus',
+              'probationStatus', 'confirmationDateRaw', 'confirmationDateIso', 'confirmationStatus',
+              'updatedBy', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if isVerifiedUser() && isValidId(employeeId) && isHRAdminOrAbove();
+    }
+
+    match /alertReviews/{reviewId} {
+      allow get: if isVerifiedUser() && isValidId(reviewId) && isAuthorizedViewer();
+      allow list: if isVerifiedUser() && (isBootstrappedAdmin() || request.auth.uid in existing().authorizedUids);
+
+      allow create: if isVerifiedUser()
+        && isValidId(reviewId)
+        && isValidAlertReview(incoming(), reviewId)
+        && isHROfficerOrAbove()
+        && incoming().createdAt == request.time;
+
+      allow update: if false;
+      allow delete: if isVerifiedUser() && isValidId(reviewId) && isHRAdminOrAbove();
+    }
+
+    match /importLogs/{logId} {
+      allow get: if isVerifiedUser() && isValidId(logId) && isAuthorizedViewer();
+      allow list: if isVerifiedUser() && (isBootstrappedAdmin() || request.auth.uid in existing().authorizedUids);
+
+      allow create: if isVerifiedUser()
+        && isValidId(logId)
+        && isValidImportLog(incoming(), logId)
+        && isHRAdminOrAbove()
+        && incoming().createdAt == request.time;
+
+      allow update: if false;
+      allow delete: if isSuperAdmin() && isValidId(logId);
+    }
+
+    match /settings/{settingId} {
+      allow get: if isVerifiedUser() && isValidId(settingId) && settingId == 'alert_mfb' && isAuthorizedViewer();
+      allow list: if false;
+
+      allow create: if isVerifiedUser()
+        && isValidId(settingId)
+        && settingId == 'alert_mfb'
+        && isValidWorkspaceSettings(incoming())
+        && isSuperAdmin()
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(settingId)
+        && settingId == 'alert_mfb'
+        && isValidWorkspaceSettings(incoming())
+        && isSuperAdmin()
+        && incoming().updatedBy == request.auth.uid
+        && incoming().updatedAt == request.time;
+
+      allow delete: if false;
+    }
+  }
+}
